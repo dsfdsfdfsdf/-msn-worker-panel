@@ -1,9 +1,4 @@
 
-// Version 1.0.0
-// Tips: Change your subLinks accordingly. Note that only ws+tls+443 configs will work.
-
-
-
 const subLinks = [
     'https://raw.githubusercontent.com/soroushmirzaei/telegram-configs-collector/main/protocols/vmess',
     'https://raw.githubusercontent.com/soroushmirzaei/telegram-configs-collector/main/protocols/vless',
@@ -12,7 +7,7 @@ const subLinks = [
     'https://raw.githubusercontent.com/soroushmirzaei/telegram-configs-collector/main/protocols/juicity',
     'https://raw.githubusercontent.com/soroushmirzaei/telegram-configs-collector/main/protocols/trojan',
     'https://raw.githubusercontent.com/soroushmirzaei/telegram-configs-collector/main/protocols/hysteria',
-    'https://raw.githubusercontent.com/soroushmirzaei/telegram-configs-collector/main/protocols/shadowsocks',  // Add more links here as needed
+    'https://raw.githubusercontent.com/soroushmirzaei/telegram-configs-collector/main/protocols/shadowsocks',
   ];
   
   export default {
@@ -22,9 +17,8 @@ const subLinks = [
       let realhostname = pathSegments[0] || '';
       let realpathname = pathSegments[1] || '';
   
-      // Handle the base URL ("/")
       if (url.pathname === '/') {
-        // Return the HTML content with improved design
+
         return new Response(`
           <!DOCTYPE html>
           <html lang="en">
@@ -176,7 +170,6 @@ const subLinks = [
         });
       }
   
-      // Create sets to store unique paths for each protocol
       let trojanPaths = new Set();
       let vlessPaths = new Set();
       let vmessPaths = new Set();
@@ -184,25 +177,22 @@ const subLinks = [
       if (url.pathname.startsWith('/sub')) {
         let newConfigs = '';
   
-        // Fetch configurations from all subLinks
         for (let subLink of subLinks) {
           try {
             let resp = await fetch(subLink);
             if (!resp.ok) {
-              continue;  // Skip invalid responses
+              continue;  
             }
             let subConfigs = await resp.text();
   
-            // Check if the content is base64 encoded
             let isBase64Encoded = false;
             try {
-              atob(subConfigs);  // Try to decode it
+              atob(subConfigs);  
               isBase64Encoded = true;
             } catch (e) {
-              isBase64Encoded = false;  // Not base64 encoded
+              isBase64Encoded = false;  
             }
   
-            // Decode base64 content if encoded
             if (isBase64Encoded) {
               subConfigs = atob(subConfigs);
             }
@@ -211,8 +201,8 @@ const subLinks = [
             subConfigs = subConfigs.split(/\r?\n/);
   
             for (let subConfig of subConfigs) {
-              subConfig = subConfig.trim();  // Trim any leading/trailing whitespace
-              if (subConfig === '') continue;  // Skip empty lines
+              subConfig = subConfig.trim();  
+              if (subConfig === '') continue;  
   
               try {
                 if (subConfig.startsWith('vmess://')) {
@@ -221,7 +211,6 @@ const subLinks = [
                   vmessData = atob(vmessData);
                   let vmessConfig = JSON.parse(vmessData);
   
-                  // Ensure WebSocket (ws) and port 443 for VMess
                   if (
                     vmessConfig.sni &&
                     !isIp(vmessConfig.sni) &&
@@ -246,10 +235,9 @@ const subLinks = [
                       alpn: 'http/1.1',
                     };
   
-                    // Check for unique paths and avoid duplications
                     let fullPath = configNew.path;
                     if (!vmessPaths.has(fullPath)) {
-                      vmessPaths.add(fullPath);  // Add the path to the Set
+                      vmessPaths.add(fullPath);  
                       let encodedVmess = 'vmess://' + btoa(JSON.stringify(configNew));
                       newConfigs += encodedVmess + '\n';
                     }
@@ -257,24 +245,23 @@ const subLinks = [
                 } else if (subConfig.startsWith('vless://')) {
                   // Handle VLESS configuration
                   let vlessParts = subConfig.replace('vless://', '').split('@');
-                  if (vlessParts.length !== 2) continue;  // Invalid format
+                  if (vlessParts.length !== 2) continue;  
   
                   let uuid = vlessParts[0];
                   let remainingParts = vlessParts[1].split('?');
-                  if (remainingParts.length !== 2) continue;  // Invalid format
+                  if (remainingParts.length !== 2) continue;  
   
                   let [ipPort, params] = remainingParts;
                   let [ip, port] = ipPort.split(':');
-                  if (!port) continue;  // Port is required
+                  if (!port) continue;  
   
                   let queryParams = new URLSearchParams(params);
                   let security = queryParams.get('security');
                   let sni = queryParams.get('sni');
                   let alpn = queryParams.get('alpn');
                   let fp = queryParams.get('fp');
-                  let type = queryParams.get('type');  // For WebSocket check
+                  let type = queryParams.get('type');  
   
-                  // Ensure WebSocket (type=ws) and port 443 for VLESS
                   if (
                     sni &&
                     !isIp(sni) &&
@@ -284,17 +271,14 @@ const subLinks = [
                   ) {
                     let newPath = `/${sni}${queryParams.get('path') || ''}`;
   
-                    // Check for unique paths and avoid duplications
                     if (!vlessPaths.has(newPath)) {
-                      vlessPaths.add(newPath);  // Add the path to the Set
+                      vlessPaths.add(newPath);  
                       let newVlessConfig = `vless://${uuid}@${realpathname === '' ? url.hostname : realpathname}:${port}?encryption=none&security=${security}&sni=${url.hostname}&alpn=${alpn}&fp=chrome&allowInsecure=1&type=ws&host=${url.hostname}&path=${newPath}#Node-${sni}`;
                       newConfigs += newVlessConfig + '\n';
                     }
                   }
                 } else if (subConfig.startsWith('trojan://')) {
-                  // Handle Trojan configuration
   
-                  // Find the last '#' to separate the remark
                   let lastHashIndex = subConfig.lastIndexOf('#');
                   let configWithoutRemark = subConfig;
                   let remark = '';
@@ -303,25 +287,22 @@ const subLinks = [
                     remark = subConfig.substring(lastHashIndex + 1);
                   }
   
-                  // Now parse configWithoutRemark
                   let trojanURL = configWithoutRemark.replace('trojan://', '');
                   let [passwordAndHost, params] = trojanURL.split('?');
-                  if (!params) continue;  // Invalid format
+                  if (!params) continue;  
   
                   let [password, hostAndPort] = passwordAndHost.split('@');
-                  if (!hostAndPort) continue;  // Invalid format
-  
+                  if (!hostAndPort) continue;  
                   let [ip, port] = hostAndPort.split(':');
-                  if (!port) continue;  // Port is required
+                  if (!port) continue;  
   
                   let queryParams = new URLSearchParams(params);
                   let security = queryParams.get('security');
                   let sni = queryParams.get('sni');
                   let alpn = queryParams.get('alpn');
                   let fp = queryParams.get('fp');
-                  let type = queryParams.get('type');  // For WebSocket check
+                  let type = queryParams.get('type');  
   
-                  // Ensure WebSocket (type=ws), TLS, and port 443 for Trojan
                   if (
                     sni &&
                     !isIp(sni) &&
@@ -331,21 +312,18 @@ const subLinks = [
                   ) {
                     let newPath = `/${sni}${decodeURIComponent(queryParams.get('path') || '')}`;
   
-                    // Check for unique paths and avoid duplications
                     if (!trojanPaths.has(newPath)) {
-                      trojanPaths.add(newPath);  // Add the path to the Set
+                      trojanPaths.add(newPath);  
                       let newTrojanConfig = `trojan://${password}@${realpathname === '' ? url.hostname : realpathname}:${port}?security=${security}&sni=${url.hostname}&alpn=${alpn}&fp=chrome&allowInsecure=1&type=ws&host=${url.hostname}&path=${encodeURIComponent(newPath)}#${remark ? encodeURIComponent(remark) : `Node-${sni}`}`;
                       newConfigs += newTrojanConfig + '\n';
                     }
                   }
                 }
               } catch (error) {
-                // Skip non-compliant configurations and move to the next
                 continue;
               }
             }
           } catch (error) {
-            // Handle any fetch errors for subLink
             continue;
           }
         }
@@ -354,7 +332,7 @@ const subLinks = [
           headers: { 'Content-Type': 'text/plain' },
         });
       } else {
-        // Handle non-/sub requests by proxying them
+
         const url = new URL(request.url);
         const splitted = url.pathname.replace(/^\/*/, '').split('/');
         const address = splitted[0];
@@ -369,13 +347,13 @@ const subLinks = [
   function isIp(ipstr) {
     try {
       if (!ipstr) return false;
-      // Regular expression to validate IPv4 addresses
+
       const ipv4Regex = /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])(\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])){3}$/;
       if (!ipv4Regex.test(ipstr)) {
         return false;
       }
       let segments = ipstr.split('.');
-      // Ensure the last octet is not "0"
+
       if (segments[3] === '0') {
         return false;
       }
